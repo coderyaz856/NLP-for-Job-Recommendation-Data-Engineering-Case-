@@ -1,0 +1,26 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+
+# Job corpus: large, not redistributed
+postings.csv
+*.csv
+
+# Uploaded CVs and any local resume files — never commit
+cvs/
+*.pdf
+*.docx
+
+# Reports and slides are kept out of this repository
+report/
+*.tex
+*.aux
+*.log
+
+# Streamlit
+.streamlit/secrets.toml
+
+# Credentials
+.env
