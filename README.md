@@ -1,10 +1,55 @@
 # NLP for Job Recommendation — Data Engineering Case Study
 
+[![Python](https://img.shields.io/badge/Python-3.8%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-interface-FF4B4B?logo=streamlit&logoColor=white)](https://streamlit.io/)
+[![License: PolyForm Noncommercial](https://img.shields.io/badge/license-PolyForm%20Noncommercial-blue)](LICENSE.md)
+
 A CV-to-job matching engine for Data Engineering roles. It parses a résumé into structured attributes, scores it against a corpus of ~210,000 job postings using nine weighted signals, and returns a ranked shortlist with an explanation of why each job matched and what is missing.
 
 The design goal is **explainable ranking**. A single cosine similarity gives a number nobody can argue with or act on; this system decomposes the score into named components, and every result carries a "why matched" and a "gaps" list derived from the same components that produced the score.
 
 Status: academic project (text mining), runs locally as a Streamlit app.
+
+## Architecture
+
+The matcher uses a two-stage retrieval design so the expensive semantic models do not run over all 209,924 postings for every CV.
+
+```mermaid
+flowchart LR
+    subgraph Inputs
+        A[CV upload<br/>PDF / DOCX / TXT]
+        B[postings.csv<br/>209,924 jobs]
+    end
+
+    A --> C[Document extraction]
+    C --> D[Structured candidate profile<br/>skills, experience, languages,<br/>qualifications, constraints]
+
+    B --> E[Corpus normalization<br/>and job parsing]
+    E --> F[(Corpus artifact cache<br/>TF-IDF matrix, LDA topics,<br/>lazy parsed jobs)]
+
+    D --> G[Stage 1<br/>full-corpus TF-IDF retrieval]
+    F --> G
+    G --> H[Top 3,000 candidates]
+
+    H --> I[Stage 2<br/>MiniLM semantics, title similarity,<br/>and LDA topic similarity]
+    D --> I
+    H --> J[Nine structured signals]
+    D --> J
+
+    I --> K[Normalized weighted aggregation]
+    J --> K
+    K --> L[Must-have coverage cap<br/>and project compensation policy]
+    L --> M[Ranked jobs with score breakdown,<br/>matched requirements, and gaps]
+
+    M --> N[(Result cache<br/>CV hash + weights + policy)]
+    N --> O[Streamlit<br/>Top Matches / Analysis / Weights]
+```
+
+The module-level corpus cache is keyed by row count, columns and source-file modification time. The Streamlit layer caches rankings by the CV content hash, weight vector and project-compensation policy. Changing only the display count reuses the previous ranking.
+
+### Current deployment boundary
+
+This repository is a local analytical prototype. It loads `postings.csv` at process start and retains corpus artifacts in memory; it does not currently provide multi-user isolation, persistent model artifacts, background indexing, authentication, or production monitoring.
 
 ## Approach
 
@@ -78,6 +123,10 @@ matching_system.py   Parsing, corpus artefacts, the nine scoring signals, evalua
 ## Performance notes
 
 Embedding and TF-IDF artefacts for the full corpus are computed once and held in a module-level cache keyed on a job-corpus signature (row count, columns, file mtime), so re-ranking against new weights does not recompute them. The Streamlit layer adds a second cache keyed on a SHA-256 of the CV text plus the weight vector, so changing only the number of displayed results reuses the stored ranking instead of re-running the pipeline.
+
+## License
+
+This software is available under the [PolyForm Noncommercial License 1.0.0](LICENSE.md). Research, education, personal experimentation, modification and redistribution are permitted for noncommercial purposes under its terms. Commercial use is not licensed; contact the copyright holder to discuss separate commercial permission.
 
 ## Technologies
 
